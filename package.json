@@ -1,0 +1,10 @@
+{
+  "name": "trinity",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/renderer.js",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
