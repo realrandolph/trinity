@@ -24,7 +24,7 @@ test('loader resolves current Ymir manifests and validates their schema versions
     ['props/test/prop.json',prop],['models/test/model.json',model],['models/test/mesh.bin',meshBytes],
     ['props/test/old.json',{type:'prop',schemaVersion:1}],
     ['scene-other-abi.json',{schemaVersion:1,rendererABI:'other-abi'}],
-    ['scene-current.json',{schemaVersion:1,rendererABI:'trinity-grwm-v2',assetBase:'./',shaderSuite:'materials/current/suite.json',worlds:[{index:0,instances:[],background:[.1,.1,.1],accent:[.2,.2,.2]}]}],
+    ['scene-current.json',{schemaVersion:1,rendererABI:'trinity-grwm-v2',assetBase:'./',shaderSuite:'materials/current/suite.json',worlds:[{index:0,instances:[{asset:'props/test/prop.json',rig:{id:0,label:'example',pos:[0,0,0],rot:[0,0,0],scale:1}}],background:[.1,.1,.1],accent:[.2,.2,.2]}]}],
   ]);
   const oldFetch=globalThis.fetch,oldLocation=globalThis.location,oldCrypto=globalThis.crypto;
   Object.defineProperty(globalThis,'location',{value:{href:base},configurable:true});
@@ -41,6 +41,7 @@ test('loader resolves current Ymir manifests and validates their schema versions
     assert.deepEqual(loaded.nodes[0].color,[.1,.2,.3]);assert.equal(loaded.nodes[0].surfaceSlot,'surface');
     const scene=await loadScene(new URL('scene-current.json',base));
     assert.equal(scene.book.transition,null);assert.equal(scene.shaders.rendererABI,'trinity-grwm-v2');
+    assert.equal(scene.book.worlds[0].nodes[0].assembly,0);assert.equal(scene.book.worlds[0].nodes[0].identity,0);
     await assert.rejects(library.loadProp('props/test/old.json'),/Expected Ymir Prop schema 3/);
     await assert.rejects(loadScene(new URL('scene-other-abi.json',base)),/trinity-grwm-v2/);
     suite.rendererABI='other-abi';

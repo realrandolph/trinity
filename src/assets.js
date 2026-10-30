@@ -114,10 +114,11 @@ export async function loadScene(url){
     const chunks=[],nodes=[],rigs=[];let offset=0;
     for(const instance of w.instances){
       const prop=await library.loadProp(instance.asset,{variant:instance.variant});
-      if(instance.nodeOverrides.length!==prop.nodes.length)throw new Error('Node override count mismatch');
+      const overrides=instance.nodeOverrides??prop.nodes.map((n,i)=>({identity:nodes.length+i,assembly:instance.rig.id,label:n.label??n.partId??`${instance.rig.label??'Prop'} ${i+1}`}));
+      if(overrides.length!==prop.nodes.length)throw new Error('Node override count must match Prop parts.');
       if(instance.rig.id!==rigs.length)throw new Error('Rig IDs must be consecutive');
       rigs.push(instance.rig);chunks.push(new Uint8Array(prop.raw));
-      prop.nodes.forEach((n,i)=>nodes.push({...n,...instance.nodeOverrides[i],vertex_offset:n.vertex_offset+offset,index_offset:n.index_offset+offset}));
+      prop.nodes.forEach((n,i)=>nodes.push({...n,...overrides[i],vertex_offset:n.vertex_offset+offset,index_offset:n.index_offset+offset}));
       offset+=prop.raw.byteLength;
     }
     nodes.sort((a,b)=>a.identity-b.identity);

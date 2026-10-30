@@ -88,14 +88,13 @@ renderer. Assign a new ID to each distinct appearance version.
 ## Scenes
 
 `scene.json`: `schemaVersion: 1`, `rendererABI`, `assetBase`, `shaderSuite`,
-`duration`, `worlds`, `transition`, and optional project-authored camera metadata.
-Each world contains `instances`: an asset manifest reference, its scene `rig`
-(placement, scale, bounds, role, event bindings) and per-node `nodeOverrides`
-(original ordering identity, assembly ID, scene tag/bindings). Rig IDs are
-consecutive within a world. `loadScene` resolves material IDs and reconstructs
-editable node data for rendering; it validates mesh ranges, finite vertices,
-triangle indices, and prop checksums. Scene adapters evaluate all music/animation
-state; the renderer consumes matrices rather than knowing track names.
+`durationSeconds`, `worlds`, and optional camera/animation data. Each world holds
+`instances` referencing Prop manifests and rig transforms. Per-node `nodeOverrides`
+add authored scene metadata when needed; rig transforms and generated identities
+provide defaults. Rig IDs are consecutive within a world. `loadScene` resolves
+Material IDs, assembles editable node data, and validates mesh ranges, finite
+vertices, triangle indices, and Prop checksums. Transition geometry is an optional
+scene asset. Synesthesia evaluates scene keyframes and audio bindings into matrices.
 
 ## Versioning
 
