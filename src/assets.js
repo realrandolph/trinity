@@ -1,4 +1,4 @@
-// Current Trinity/Ymir format. Materials are exact Ymir shaders, never PBR fallbacks.
+// Current Trinity/Ymir format. Materials use their authored Ymir shader suites.
 export function resolveColor(catalog,id){
   const color=catalog.assets.find(a=>a.type==='color'&&a.id===id);
   if(!color)throw new Error(`Unknown Color resource: ${id}`);
@@ -38,11 +38,11 @@ async function verifiedMesh(url,hash){
 export async function loadLibrary(base,{suiteManifest}={}){
   base=new URL(base,location.href);
   const catalog=await request(new URL('catalog.json',base));
-  if(catalog.schemaVersion!==1)throw new Error('Unsupported Ymir catalog version');
+  if(catalog.schemaVersion!==1)throw new Error(`Expected Ymir catalog schema 1; received ${catalog.schemaVersion}`);
   const materials=new Map(catalog.assets.filter(a=>a.type==='material').map(a=>[a.id,a]));
   const suiteURL=new URL(suiteManifest??catalog.defaultSuite??'materials/ymir-surfaces-v1/suite.json',base);
   const suite=await request(suiteURL);
-  if(suite.rendererABI!=='trinity-grwm-v2')throw new Error(`Unsupported shader ABI: ${suite.rendererABI}`);
+  if(suite.rendererABI!=='trinity-grwm-v2')throw new Error(`Expected shader ABI trinity-grwm-v2; received ${suite.rendererABI}`);
   const source=async file=>{const r=await fetch(new URL(file,suiteURL));if(!r.ok)throw new Error(`Shader missing: ${file}`);return r.text();};
   const [vertex,fragment,depth]=await Promise.all([source(suite.vertex),source(suite.fragment),source(suite.depth)]);
   const shaders={vertex,fragment,depth,rendererABI:suite.rendererABI};
@@ -54,7 +54,7 @@ export async function loadLibrary(base,{suiteManifest}={}){
   async function modelResource(url){
     if(!modelCache.has(url.href))modelCache.set(url.href,(async()=>{
       const model=await request(url);
-      if(model.type!=='model'||model.schemaVersion!==2)throw new Error('Unsupported model format');
+      if(model.type!=='model'||model.schemaVersion!==2)throw new Error(`Expected Ymir Model schema 2; received ${model.schemaVersion}`);
       const raw=await verifiedMesh(new URL(model.mesh,url),model.meshSha256);validateMesh(raw,model.parts);
       return {model,raw};
     })());
@@ -65,7 +65,7 @@ export async function loadLibrary(base,{suiteManifest}={}){
     const key=url.href+'#'+(variant??'');
     if(!cache.has(key))cache.set(key,(async()=>{
       const asset=await request(url);
-      if(asset.schemaVersion!==3||asset.type!=='prop')throw new Error('Unsupported prop format; Trinity requires Ymir prop schema 3');
+      if(asset.schemaVersion!==3||asset.type!=='prop')throw new Error(`Expected Ymir Prop schema 3; received ${asset.schemaVersion}`);
       const selected=asset.variants?.find(v=>v.id===(variant??asset.defaultVariant));
       if(!selected)throw new Error(`Variant missing or deleted: ${variant??asset.defaultVariant}`);
       const modelURL=new URL(asset.model,base),{model,raw}=await modelResource(modelURL);
@@ -84,7 +84,7 @@ export async function loadLibrary(base,{suiteManifest}={}){
         const material=materials.get(n.material.id);
         if(!material)throw new Error(`Unknown material: ${n.material.id}`);
         if(material.suite!==suite.id||suite.profiles[material.profile]!==material.id)
-          throw new Error(`Material does not belong to selected shader suite: ${material.id}`);
+          throw new Error(`Material ${material.id} belongs to suite ${material.suite}; selected suite is ${suite.id}`);
         const parameters={...material.parameters,...n.material.parameters};
         const colorId=n.color?.id??material.defaultColorId;
         if(colorId){const colorData=resolveColor(catalog,colorId);return {...n,...parameters,color:colorData.primary,colorData,kind:material.profile};}
@@ -107,7 +107,7 @@ export async function loadLibrary(base,{suiteManifest}={}){
 export async function loadScene(url){
   url=new URL(url,location.href);
   const scene=await request(url);
-  if(scene.schemaVersion!==1||scene.rendererABI!=='trinity-grwm-v2')throw new Error('Unsupported Trinity scene; renderer ABI trinity-grwm-v2 is required');
+  if(scene.schemaVersion!==1||scene.rendererABI!=='trinity-grwm-v2')throw new Error(`Expected Trinity scene schema 1 with ABI trinity-grwm-v2; received schema ${scene.schemaVersion}, ABI ${scene.rendererABI}`);
   const library=await loadLibrary(new URL(scene.assetBase,url),{suiteManifest:scene.shaderSuite});
   const worlds=[];
   for(const w of scene.worlds){

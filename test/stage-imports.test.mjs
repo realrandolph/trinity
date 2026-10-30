@@ -9,14 +9,14 @@ test('staging consolidates source imports into the pinned single-file release',(
     "import {multiply} from './vendor/trinity/src/math.js';",
     'const renderer=createRenderer;'
   ].join('\n');
-  const result=pointAtTrinityRelease(source,'trinity-1.1.0.mjs');
-  assert.equal((result.match(/from '\.\/vendor\/trinity\/trinity-1\.1\.0\.mjs'/g)??[]).length,1);
+  const result=pointAtTrinityRelease(source,'trinity-1.1.1.mjs');
+  assert.equal((result.match(/from '\.\/vendor\/trinity\/trinity-1\.1\.1\.mjs'/g)??[]).length,1);
   assert.match(result,/\{createRenderer,loadScene,resolveColor,multiply\}/);
   assert.doesNotMatch(result,/vendor\/trinity\/src\//);
 });
 
-test('already-pinned imports remain unchanged and unsupported import forms fail',()=>{
-  const pinned="import {loadScene} from './vendor/trinity/trinity-1.1.0.mjs';";
-  assert.equal(pointAtTrinityRelease(pinned,'trinity-1.1.0.mjs'),pinned);
-  assert.throws(()=>pointAtTrinityRelease("import * as Trinity from './vendor/trinity/src/index.js';",'trinity-1.1.0.mjs'),/named imports only/);
+test('pinned imports remain stable and named imports form the package interface',()=>{
+  const pinned="import {loadScene} from './vendor/trinity/trinity-1.1.1.mjs';";
+  assert.equal(pointAtTrinityRelease(pinned,'trinity-1.1.1.mjs'),pinned);
+  assert.throws(()=>pointAtTrinityRelease("import * as Trinity from './vendor/trinity/src/index.js';",'trinity-1.1.1.mjs'),/named imports/);
 });

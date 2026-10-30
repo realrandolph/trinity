@@ -20,7 +20,7 @@ for(const world of scene.worlds)for(const instance of world.instances){
   const asset=JSON.parse(await readFile(file,'utf8'));
   if(asset.type!=='prop'||asset.schemaVersion!==3)outdated.push(`${instance.asset} (schema ${asset.schemaVersion})`);
 }
-if(outdated.length)throw new Error(`Cannot restage outdated Prop manifests; migrate these instances to current Ymir Prop schema 3 first:\n${outdated.join('\n')}`);
+if(outdated.length)throw new Error(`Restaging requires Ymir Prop schema 3. Migrate these instances first:\n${outdated.join('\n')}`);
 const trinityPackage=JSON.parse(await readFile(path.join(root,'trinity/package.json'),'utf8'));
 const version=process.env.TRINITY_RELEASE_VERSION??trinityPackage.version;
 if(!/^\d+\.\d+\.\d+$/.test(version))throw new Error(`Invalid Trinity release version: ${version}`);
@@ -42,7 +42,7 @@ try{
   if(releaseHash!==expected)throw new Error(`Trinity ${tag} bundle checksum mismatch`);
 }catch(error){
   await rm(download,{recursive:true,force:true});
-  throw new Error(`Unable to fetch and verify Trinity release ${tag} from ${repository}; authenticate with gh and confirm the release exists. ${error.message}`);
+  throw new Error(`Trinity release ${tag} requires an authenticated GitHub download and its published checksum. Repository: ${repository}. Details: ${error.message}`);
 }
 await rm(download,{recursive:true,force:true});
 scene.shaderSuite=catalog.defaultSuite;
@@ -72,6 +72,6 @@ await writeFile(path.join(destination,'dependencies.json'),JSON.stringify({
   ymir:JSON.parse(await readFile(path.join(root,'ymir/package.json'))).version,
   provenance:JSON.parse(await readFile(path.join(root,'trinity/provenance.json'))),
   files:hashes,
-  note:'Self-contained dependency snapshot. Restaging is explicit, never automatic during rendering.'
+  note:'Version-pinned dependency snapshot, updated through explicit staging.'
 },null,2)+'\n');
 console.log('Staged Trinity/Ymir into',destination);

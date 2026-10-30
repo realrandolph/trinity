@@ -122,7 +122,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_CUBE_MAP,lightingResources.environment);gl.generateMipmap(gl.TEXTURE_CUBE_MAP);lightingResources.ready=true;environmentPass=false;
   cachedWorld=world;cachedTransforms=transforms;cachedLighting=lighting;cachedOrigin=originZ;
   }
-  // Matte tabletop: no planar reflection pass. Real mirror views follow below.
+  // The matte tabletop uses studio reflections; planar views render the selected mirror.
   const mirrorCandidates=world.nodes.map((n,i)=>({n,i})).filter(({n,i})=>visible(i)&&n.kind===3&&/mirror/.test(n.label));
   mirrorCandidates.sort((a,b)=>Math.abs(world.rigs[a.n.assembly].pos[0])-Math.abs(world.rigs[b.n.assembly].pos[0]));
   if(mirrorCandidates.length){
@@ -138,8 +138,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
      gl.bindFramebuffer(gl.FRAMEBUFFER,reflectionBuffer);gl.viewport(0,0,W,H);gl.clearColor(...reflectionSky.map(v=>Math.pow(v/(v+.8),1/2.2)),1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     mirrorEnvironment.draw(rc,reflectUp,baseZ,atmosphere.showEnergy);
     reflectionClip=[...normal,-dot(normal,point)];
-    // Mirror surfaces are omitted from the reflection pass: no recursion, no
-    // feedback sampling, and no reference-image stand-in for the scene.
+     // Render the authored scene once from the camera reflected across this plane.
     for(let k=0;k<world.nodes.length;k++){const item=world.nodes[k];if(item.kind===7||/mirror/.test(item.label))continue;submit(main,item,transforms[k],rvp,lm,t,world,rc,light);}
     reflectionInfo={node:n,matrix:rvp};reflectionClip=null;
   }

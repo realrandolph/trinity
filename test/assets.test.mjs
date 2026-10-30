@@ -5,7 +5,7 @@ import {loadLibrary,loadScene,validateMesh} from '../src/assets.js';
 import {createRenderer} from '../src/renderer.js';
 import * as trinity from '../src/index.js';
 
-test('loader resolves current Ymir manifests and rejects obsolete formats',async()=>{
+test('loader resolves current Ymir manifests and validates their schema versions',async()=>{
   const base='https://fixture.test/ymir/';
   const mesh=new ArrayBuffer(108),vertices=new Float32Array(mesh,0,24);
   vertices.set([0,0,0,0,0,1,0,0, 1,0,0,0,0,1,1,0, 0,1,0,0,0,1,0,1]);
@@ -23,7 +23,7 @@ test('loader resolves current Ymir manifests and rejects obsolete formats',async
     ['materials/current/main.frag','fragment'],['materials/current/depth.frag','depth'],
     ['props/test/prop.json',prop],['models/test/model.json',model],['models/test/mesh.bin',meshBytes],
     ['props/test/old.json',{type:'prop',schemaVersion:1}],
-    ['scene-old.json',{schemaVersion:1,rendererABI:'unsupported-abi'}],
+    ['scene-other-abi.json',{schemaVersion:1,rendererABI:'other-abi'}],
   ]);
   const oldFetch=globalThis.fetch,oldLocation=globalThis.location,oldCrypto=globalThis.crypto;
   Object.defineProperty(globalThis,'location',{value:{href:base},configurable:true});
@@ -38,10 +38,10 @@ test('loader resolves current Ymir manifests and rejects obsolete formats',async
     const library=await loadLibrary(base),loaded=await library.loadProp('props/test/prop.json');
     assert.equal(loaded.nodes.length,1);assert.equal(loaded.nodes[0].kind,0);
     assert.deepEqual(loaded.nodes[0].color,[.1,.2,.3]);assert.equal(loaded.nodes[0].surfaceSlot,'surface');
-    await assert.rejects(library.loadProp('props/test/old.json'),/requires Ymir prop schema 3/);
-    await assert.rejects(loadScene(new URL('scene-old.json',base)),/trinity-grwm-v2/);
-    suite.rendererABI='unsupported-abi';
-    await assert.rejects(loadLibrary(base),/Unsupported shader ABI/);
+    await assert.rejects(library.loadProp('props/test/old.json'),/Expected Ymir Prop schema 3/);
+    await assert.rejects(loadScene(new URL('scene-other-abi.json',base)),/trinity-grwm-v2/);
+    suite.rendererABI='other-abi';
+    await assert.rejects(loadLibrary(base),/Expected shader ABI/);
   }finally{
     globalThis.fetch=oldFetch;
     if(oldLocation===undefined)delete globalThis.location;else Object.defineProperty(globalThis,'location',{value:oldLocation,configurable:true});
@@ -57,8 +57,8 @@ test('invalid mesh ranges, indices and vertices fail early',()=>{
   new Uint32Array(raw,96)[0]=0;new Float32Array(raw)[0]=NaN;assert.throws(()=>validateMesh(raw,[n]),/finite/);
 });
 
-test('renderer entry point refuses all but the current ABI',async()=>{
-  await assert.rejects(createRenderer({canvas:{width:1,height:1},shaders:{rendererABI:'unsupported-abi'}}),/requires shader ABI trinity-grwm-v2/);
+test('renderer entry point validates the current ABI',async()=>{
+  await assert.rejects(createRenderer({canvas:{width:1,height:1},shaders:{rendererABI:'other-abi'}}),/requires shader ABI trinity-grwm-v2/);
 });
 
 test('public package entry point exposes the project runtime API',()=>{

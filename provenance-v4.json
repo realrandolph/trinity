@@ -54,5 +54,5 @@
     "implementation/data/renderer_data_qa.json": "9867127378b5649caea0ecc4ace0fb57ca11fbbdcdfcb9b37352b728c86c1eb7",
     "implementation/data/sample_envelopes_100hz.json": "0f240fc09cc6e8de9509cf95fd29990f2e5fa6dfe67b65050f145a633a0f8690"
   },
-  "note": "Working v4 snapshot, no inherited artistic approval."
+  "note": "Working v4 snapshot; artistic review is documented separately."
 }

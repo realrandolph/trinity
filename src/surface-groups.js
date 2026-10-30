@@ -1,12 +1,12 @@
-// Descriptive display label only: never changes the underlying binding or shader.
+// Display labels describe effective settings; the original binding remains authoritative.
 export function surfaceAssignmentName(material,assignment){
   if(material.id!=='grwm/studio-surface@3')return material.name;
   const parameters={...material.parameters,...assignment?.material.parameters};
   if(parameters.metal>=.5)return parameters.rough<=.3?'Polished Metal':'Satin-Finish Metal';
   return parameters.rough>=.65?'Matte Nonmetallic Surface':'Smooth Nonmetallic Surface';
 }
-// UI/editor groups are derived from model slots + effective prop/variant bindings.
-// They never rewrite the model or conflate different Material/Color resources.
+// UI/editor groups derive from Model slots and effective Prop/Variant bindings.
+// Each group retains its exact Material and Color resource IDs.
 export function groupSurfaceAssignments(catalog,model,defaults,overrides=[]){
   const resources=new Map(catalog.assets.map(a=>[a.id,a]));
   const assignments=new Map([...defaults,...overrides].map(s=>[s.slotId,s]));
