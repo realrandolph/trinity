@@ -1,8 +1,10 @@
 // Stage a dependency snapshot inside a Synesthesia job's permitted serving root.
-import {cp,mkdir,readFile,writeFile,readdir,rm} from 'node:fs/promises';
+import {cp,mkdir,readFile,writeFile,readdir,rm,mkdtemp} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {pointAtTrinityRelease} from './stage-imports.mjs';
 const root=path.resolve(fileURLToPath(new URL('../../',import.meta.url)));
 const destination=path.resolve(root,process.argv[2]??'projects/grwm/video/v4/trinity-integration');
 if(!destination.startsWith(root+path.sep))throw new Error('Destination must stay within the music workspace');
@@ -19,17 +21,42 @@ for(const world of scene.worlds)for(const instance of world.instances){
   if(asset.type!=='prop'||asset.schemaVersion!==3)outdated.push(`${instance.asset} (schema ${asset.schemaVersion})`);
 }
 if(outdated.length)throw new Error(`Cannot restage outdated Prop manifests; migrate these instances to current Ymir Prop schema 3 first:\n${outdated.join('\n')}`);
+const trinityPackage=JSON.parse(await readFile(path.join(root,'trinity/package.json'),'utf8'));
+const version=process.env.TRINITY_RELEASE_VERSION??trinityPackage.version;
+if(!/^\d+\.\d+\.\d+$/.test(version))throw new Error(`Invalid Trinity release version: ${version}`);
+const filename=`trinity-${version}.mjs`,tag=`v${version}`;
+const repository=process.env.TRINITY_RELEASE_REPOSITORY??'realrandolph/trinity';
+const runtimePath=path.join(destination,'runtime.js');
+const runtime=pointAtTrinityRelease(await readFile(runtimePath,'utf8'),filename);
+const download=await mkdtemp(path.join(destination,'.trinity-release-'));
+let bundleBytes,releaseHash;
+try{
+  execFileSync('gh',['release','download',tag,'--repo',repository,'--pattern',filename,'--pattern','SHA256SUMS','--dir',download],{stdio:'inherit'});
+  const bundle=path.join(download,filename);
+  const checksums=(await readFile(path.join(download,'SHA256SUMS'),'utf8')).split(/\r?\n/);
+  const record=checksums.find(line=>line.trimEnd().endsWith(`  ${filename}`));
+  const expected=record?.match(/^([a-f0-9]{64})  /)?.[1];
+  if(!expected)throw new Error(`Release checksum missing for ${filename}`);
+  bundleBytes=await readFile(bundle);
+  releaseHash=createHash('sha256').update(bundleBytes).digest('hex');
+  if(releaseHash!==expected)throw new Error(`Trinity ${tag} bundle checksum mismatch`);
+}catch(error){
+  await rm(download,{recursive:true,force:true});
+  throw new Error(`Unable to fetch and verify Trinity release ${tag} from ${repository}; authenticate with gh and confirm the release exists. ${error.message}`);
+}
+await rm(download,{recursive:true,force:true});
 scene.shaderSuite=catalog.defaultSuite;
 const vendor=path.join(destination,'vendor');await mkdir(vendor,{recursive:true});
-const trinity=path.join(vendor,'trinity/src'),library=path.join(vendor,'ymir');
+const trinity=path.join(vendor,'trinity'),library=path.join(vendor,'ymir');
 await rm(trinity,{recursive:true,force:true});await rm(library,{recursive:true,force:true});
-await cp(path.join(root,'trinity/src'),trinity,{recursive:true});
+await mkdir(trinity,{recursive:true});await writeFile(path.join(trinity,filename),bundleBytes);
 await mkdir(library,{recursive:true});
 for(const part of ['catalog.json','models','props','colors','effects','provenance-v4.json'])
   await cp(path.join(root,'ymir',part),path.join(library,part),{recursive:true});
 await cp(path.join(root,'ymir/materials/ymir-surfaces-v1'),path.join(library,'materials/ymir-surfaces-v1'),{recursive:true});
 await cp(path.join(root,'ymir/materials/surfaces'),path.join(library,'materials/surfaces'),{recursive:true});
 scene.assetBase='./vendor/ymir/';await writeFile(path.join(destination,'scene.json'),JSON.stringify(scene,null,2)+'\n');
+await writeFile(runtimePath,runtime);
 const hashes={};
 async function inventory(folder){
   for(const entry of await readdir(folder,{withFileTypes:true})){
@@ -40,7 +67,8 @@ async function inventory(folder){
 }
 await inventory(path.join(destination,'vendor'));
 await writeFile(path.join(destination,'dependencies.json'),JSON.stringify({
-  trinity:JSON.parse(await readFile(path.join(root,'trinity/package.json'))).version,
+  trinity:version,
+  trinityRelease:{repository,tag,artifact:`vendor/trinity/${filename}`,sha256:releaseHash},
   ymir:JSON.parse(await readFile(path.join(root,'ymir/package.json'))).version,
   provenance:JSON.parse(await readFile(path.join(root,'trinity/provenance.json'))),
   files:hashes,

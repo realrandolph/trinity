@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash,webcrypto} from 'node:crypto';
 import {loadLibrary,loadScene,validateMesh} from '../src/assets.js';
 import {createRenderer} from '../src/renderer.js';
+import * as trinity from '../src/index.js';
 
 test('loader resolves current Ymir manifests and rejects obsolete formats',async()=>{
   const base='https://fixture.test/ymir/';
@@ -58,4 +59,9 @@ test('invalid mesh ranges, indices and vertices fail early',()=>{
 
 test('renderer entry point refuses all but the current ABI',async()=>{
   await assert.rejects(createRenderer({canvas:{width:1,height:1},shaders:{rendererABI:'unsupported-abi'}}),/requires shader ABI trinity-grwm-v2/);
+});
+
+test('public package entry point exposes the project runtime API',()=>{
+  for(const name of ['createRenderer','loadScene','loadLibrary','resolveColor','validateMesh','model','multiply','groupSurfaceAssignments'])
+    assert.equal(typeof trinity[name],'function',`${name} must be part of the release API`);
 });

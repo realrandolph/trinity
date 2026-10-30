@@ -8,7 +8,7 @@ Interactive browser previews now use optional lower-cost settings (see
 `ymir/CURRENT.md`). Video render defaults are unchanged. The shared Ymir library
 no longer retains superseded entries; previously staged jobs remain self-contained.
 
-**Current version: 1.0.0.** The renderer supports one shader ABI:
+**Current version: 1.1.0.** The renderer supports one shader ABI:
 `trinity-grwm-v2`. There is no legacy renderer or ABI dispatcher.
 
 Reusable WebGL2 renderer extracted from the GRWM v4 rendering pipeline. Ymir owns
@@ -19,8 +19,7 @@ glints, and frame submission. It does not analyze audio or interpret song events
 ## Use
 
 ```js
-import {loadScene} from './vendor/trinity/src/assets.js';
-import {createRenderer} from './vendor/trinity/src/renderer.js';
+import {loadScene,createRenderer} from './vendor/trinity/trinity-1.1.0.mjs';
 
 const {book, shaders} = await loadScene(new URL('./scene.json', import.meta.url));
 const renderer = await createRenderer({canvas, book, shaders});
@@ -31,8 +30,8 @@ renderer.dispose();
 ```
 
 `transforms` entries have `model` (column-major mat4) and `art`, `perc`, `voice`,
-`extra` (vec4 each). `cam` has `eye`, `target`, `view`. `src/math.js` supplies
-matrix helpers. All state must be established from the requested timestamp.
+`extra` (vec4 each). `cam` has `eye`, `target`, `view`. The bundle exports
+Trinity's matrix helpers. All state must be established from the requested timestamp.
 Optional atmosphere: `tint`, `keyGain`, `fill`, `fog`, `glints`. No accumulated
 simulation is run by Trinity. See `FORMAT.md` for asset and scene contracts.
 
@@ -52,12 +51,32 @@ older manifests. Migrate the project adapter/assets before explicitly restaging.
 
 ```sh
 cd trinity
+npm ci
 npm test
+npm run build
 ```
 
-The renderer itself has **no npm dependencies**. Unit tests validate the current
-Ymir catalog, every referenced model mesh, and shader-suite assignments. They do
-not capture screenshots or certify artistic quality.
+The runtime has no browser dependencies; `esbuild` is a build-time dependency.
+`npm run build` emits one versioned ESM bundle and its SHA-256 manifest under the
+ignored `dist/` directory. It bundles Trinity's JS modules; the project continues
+to stage Ymir's shaders, effects and model/Color assets separately.
+
+Publish a versioned GitHub Release (the repository is private):
+
+```sh
+gh release create v1.1.0 dist/trinity-1.1.0.mjs dist/SHA256SUMS \
+  --repo realrandolph/trinity --title "Trinity 1.1.0"
+```
+
+`tools/stage.mjs` downloads the exact release artifact with `gh`, verifies it
+against the published checksum, and updates the job's runtime to import that one
+bundle. `dependencies.json` records the release tag and digest. Staging is an
+explicit update; rendering never fetches from the network. Run it only after the
+scene uses current schema-3 Ymir Props. Existing GRWM integrations with older
+manifests are deliberately rejected until migrated.
+
+Unit tests validate bundle exports/import rewriting, the current loader contract,
+and surface grouping. They do not capture screenshots or certify artistic quality.
 
 ## Compatibility and scope
 
