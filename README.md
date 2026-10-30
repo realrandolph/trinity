@@ -8,7 +8,7 @@ Interactive browser previews offer optional lower-cost settings (see
 `ymir/CURRENT.md`). Video renders use full-quality defaults. Ymir's catalog lists
 current shared resources, while each finished job pins its rendered bytes.
 
-**Current version: 1.2.1.** The renderer interface uses shader ABI
+**Current version: 1.2.2.** The renderer interface uses shader ABI
 `trinity-grwm-v2`.
 
 Reusable WebGL2 renderer extracted from the GRWM v4 rendering pipeline. Ymir owns
@@ -20,7 +20,7 @@ analysis and song interpretation.
 ## Use
 
 ```js
-import {loadScene,createRenderer} from './vendor/trinity/trinity-1.2.1.mjs';
+import {loadScene,createRenderer} from './vendor/trinity/trinity-1.2.2.mjs';
 
 const {book, shaders} = await loadScene(new URL('./scene.json', import.meta.url));
 const renderer = await createRenderer({canvas, book, shaders});
@@ -61,11 +61,11 @@ The browser runtime uses native Web APIs; `esbuild` is a build-time dependency.
 ignored `dist/` directory. It bundles Trinity's JS modules; the project continues
 to stage Ymir's shaders, effects and model/Color assets separately.
 
-Publish a versioned GitHub Release (the repository is private):
+Publish a versioned GitHub Release:
 
 ```sh
-gh release create v1.2.1 dist/trinity-1.2.1.mjs dist/SHA256SUMS \
-  --repo realrandolph/trinity --title "Trinity 1.2.1"
+gh release create v1.2.2 dist/trinity-1.2.2.mjs dist/SHA256SUMS \
+  --repo realrandolph/trinity --title "Trinity 1.2.2"
 ```
 
 `tools/stage.mjs` downloads the exact release artifact with `gh`, verifies its
