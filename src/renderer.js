@@ -31,7 +31,7 @@ function mesh(raw,node){
   gl.bindVertexArray(null);return {vao,vb,ib,count:node.index_count};
 }
 for(const world of book.worlds){const raw=world.meshData;for(const n of world.nodes)n.gpu=mesh(raw,n);}
-const transitionRaw=book.transition.meshData;const transitionMesh=mesh(transitionRaw,book.transition);
+const transitionMesh=book.transition?.meshData?mesh(book.transition.meshData,book.transition):null;
 const shadowTexture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,shadowTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.DEPTH_COMPONENT24,shadowSize,shadowSize,0,gl.DEPTH_COMPONENT,gl.UNSIGNED_INT,null);
 gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 const shadowBuffer=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,shadowBuffer);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.TEXTURE_2D,shadowTexture,0);gl.drawBuffers([gl.NONE]);gl.readBuffer(gl.NONE);
@@ -172,9 +172,9 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
   }
    const renderedShow=showRenderer.draw(vp,[0,0,baseZ],cam.eye,noParticles?{...atmosphere,particles:[]}:atmosphere,{maps:[lightingResources.spotA.texture,lightingResources.spotB.texture],matrices:spotMatrices});
 
-if(transition){submit(main,{...transition.node,gpu:transitionMesh},transition.transform,vp,lm,t,transition.world,cam,light);}
+   if(transition&&transitionMesh){submit(main,{...transition.node,gpu:transitionMesh},transition.transform,vp,lm,t,transition.world,cam,light);}
 bloomRenderer.finish(bloomStrength);if(quality.synchronize!==false)gl.finish();const err=gl.getError();if(err!==gl.NO_ERROR)throw new Error(`WebGL error ${err} at ${t}`);
 return {rendered_glints:glintPoints.length,renderedShow,bloomSettings:bloomRenderer.settings,reflection:reflectionInfo?{mirror:reflectionInfo.node.label}:null};
 }
-return {render,dispose(){bloomRenderer.dispose();mirrorEnvironment.dispose();lightingResources.dispose();glintRenderer.dispose();showRenderer.dispose();for(const w of book.worlds)for(const n of w.nodes){gl.deleteBuffer(n.gpu.vb);gl.deleteBuffer(n.gpu.ib);gl.deleteVertexArray(n.gpu.vao);}gl.deleteBuffer(transitionMesh.vb);gl.deleteBuffer(transitionMesh.ib);gl.deleteVertexArray(transitionMesh.vao);gl.deleteTexture(shadowTexture);gl.deleteFramebuffer(shadowBuffer);gl.deleteTexture(reflectionTexture);gl.deleteFramebuffer(reflectionBuffer);gl.deleteRenderbuffer(reflectionDepth);gl.deleteProgram(main);gl.deleteProgram(depth);gl.deleteProgram(backdrop);}};
+return {render,dispose(){bloomRenderer.dispose();mirrorEnvironment.dispose();lightingResources.dispose();glintRenderer.dispose();showRenderer.dispose();for(const w of book.worlds)for(const n of w.nodes){gl.deleteBuffer(n.gpu.vb);gl.deleteBuffer(n.gpu.ib);gl.deleteVertexArray(n.gpu.vao);}if(transitionMesh){gl.deleteBuffer(transitionMesh.vb);gl.deleteBuffer(transitionMesh.ib);gl.deleteVertexArray(transitionMesh.vao);}gl.deleteTexture(shadowTexture);gl.deleteFramebuffer(shadowBuffer);gl.deleteTexture(reflectionTexture);gl.deleteFramebuffer(reflectionBuffer);gl.deleteRenderbuffer(reflectionDepth);gl.deleteProgram(main);gl.deleteProgram(depth);gl.deleteProgram(backdrop);}};
 }

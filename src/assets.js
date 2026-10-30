@@ -125,7 +125,10 @@ export async function loadScene(url){
     for(const chunk of chunks){raw.set(chunk,cursor);cursor+=chunk.length;}
     worlds.push({...w,rigs,nodes,meshData:raw.buffer});
   }
-  const transition={...scene.transition,meshData:await request(new URL(scene.transition.file,new URL(scene.assetBase,url)),true)};
-  validateMesh(transition.meshData,[{...transition,vertex_offset:0}]);
+  let transition=null;
+  if(scene.transition?.file){
+    transition={...scene.transition,meshData:await request(new URL(scene.transition.file,new URL(scene.assetBase,url)),true)};
+    validateMesh(transition.meshData,[{...transition,vertex_offset:0}]);
+  }
   return {book:{...scene,worlds,transition},shaders:library.shaders};
 }
