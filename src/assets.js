@@ -43,12 +43,23 @@ export async function loadLibrary(base,{suiteManifest}={}){
   const suiteURL=new URL(suiteManifest??catalog.defaultSuite??'materials/ymir-surfaces-v1/suite.json',base);
   const suite=await request(suiteURL);
   if(suite.rendererABI!=='trinity-grwm-v2')throw new Error(`Expected shader ABI trinity-grwm-v2; received ${suite.rendererABI}`);
-  const source=async file=>{const r=await fetch(new URL(file,suiteURL), { cache: 'no-cache' });if(!r.ok)throw new Error(`Shader missing: ${file}`);return r.text();};
+  const VERSION='1.2.3';
+  const source=async file=>{
+    const url=new URL(file,suiteURL);
+    url.searchParams.set('v',VERSION);
+    const r=await fetch(url, { cache: 'no-cache' });
+    if(!r.ok)throw new Error(`Shader missing: ${file}`);
+    return r.text();
+  };
   const [vertex,fragment,depth]=await Promise.all([source(suite.vertex),source(suite.fragment),source(suite.depth)]);
   const shaders={vertex,fragment,depth,rendererABI:suite.rendererABI};
   if(suite.colorGenerators){const generators=await source(suite.colorGenerators);shaders.fragment=fragment.replace('/* YMIR_COLOR_GENERATORS */',generators);}
   if(suite.backdropVertex){shaders.backdropVertex=await source(suite.backdropVertex);shaders.backdropFragment=await source(suite.backdropFragment);}
-  if(suite.effects)shaders.effects=Object.fromEntries(Object.entries(suite.effects).map(([key,file])=>[key,new URL(file,suiteURL).href]));
+  if(suite.effects)shaders.effects=Object.fromEntries(Object.entries(suite.effects).map(([key,file])=>{
+    const url=new URL(file,suiteURL);
+    url.searchParams.set('v',VERSION);
+    return [key,url.href];
+  }));
   const cache=new Map();
   const modelCache=new Map();
   async function modelResource(url){

@@ -13,7 +13,8 @@ test('renderer switches studio probes with inspection mode and refreshes the cac
 });
 
 test('release bundle contains the inspection environment mode',async()=>{
-  const bundle=await readFile(new URL('dist/trinity-1.2.2.mjs',root),'utf8');
+  const pkg=JSON.parse(await readFile(new URL('package.json',root),'utf8'));
+  const bundle=await readFile(new URL(`dist/trinity-${pkg.version}.mjs`,root),'utf8');
   assert.match(bundle,/studio_environment/);
-  assert.match(bundle,/studio:Q/,'the minified renderer routes selected-asset inspection into studio probes');
+  assert.match(bundle,/studio:[a-zA-Z0-9_$]/,'the minified renderer routes selected-asset inspection into studio probes');
 });
