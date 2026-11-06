@@ -107,17 +107,22 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
   // omitted to avoid recursion; glass is rendered transparently after solids.
   const refreshEnvironment=!quality.cacheEnvironment||!lightingResources.ready||cachedWorld!==world||cachedTransforms!==transforms||cachedLighting!==lighting||cachedOrigin!==originZ;
   if(refreshEnvironment){
-  environmentPosition=[0,.55,baseZ];environmentPass=true;
+  environmentPosition=(inspectionFixture&&cam?.target)?cam.target:[0,.55,baseZ];environmentPass=true;
   const cubeFaces=[[[1,0,0],[0,-1,0]],[[-1,0,0],[0,-1,0]],[[0,1,0],[0,0,1]],[[0,-1,0],[0,0,-1]],[[0,0,1],[0,-1,0]],[[0,0,-1],[0,-1,0]]];
   gl.bindFramebuffer(gl.FRAMEBUFFER,lightingResources.framebuffer);gl.viewport(0,0,lightingResources.size,lightingResources.size);
   for(let face=0;face<6;face++){
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_CUBE_MAP_POSITIVE_X+face,lightingResources.environment,0);gl.clearColor(.005,.005,.008,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     const [direction,up]=cubeFaces[face],pc={eye:environmentPosition,target:add(environmentPosition,direction)},pv=multiply(perspective(Math.PI/2,1,.08,40),lookAt(pc.eye,pc.target,up));
     mirrorEnvironment.draw(pc,up,baseZ,atmosphere.showEnergy,{probe:true,light,show:atmosphere});
-    for(let k=0;k<world.nodes.length;k++)if(visible(k)&&world.nodes[k].kind!==7&&!(world.nodes[k].kind===3&&/mirror/.test(world.nodes[k].label)))submit(main,world.nodes[k],transforms[k],pv,lm,t,world,pc,light);
-    gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
-    for(let k=0;k<world.nodes.length;k++)if(visible(k)&&world.nodes[k].kind===7)submit(main,world.nodes[k],transforms[k],pv,lm,t,world,pc,light);
-    gl.depthMask(true);gl.disable(gl.BLEND);
+    // In inspection mode, the hero asset must not draw into its own environment probe,
+    // which would cause self-occlusion artifacts (such as the top reflecting onto the bottom)
+    // and waste 6 redundant render passes of all model geometry.
+    if(!inspectionFixture){
+      for(let k=0;k<world.nodes.length;k++)if(visible(k)&&world.nodes[k].kind!==7&&!(world.nodes[k].kind===3&&/mirror/.test(world.nodes[k].label)))submit(main,world.nodes[k],transforms[k],pv,lm,t,world,pc,light);
+      gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
+      for(let k=0;k<world.nodes.length;k++)if(visible(k)&&world.nodes[k].kind===7)submit(main,world.nodes[k],transforms[k],pv,lm,t,world,pc,light);
+      gl.depthMask(true);gl.disable(gl.BLEND);
+    }
   }
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_CUBE_MAP,lightingResources.environment);gl.generateMipmap(gl.TEXTURE_CUBE_MAP);lightingResources.ready=true;environmentPass=false;
   cachedWorld=world;cachedTransforms=transforms;cachedLighting=lighting;cachedOrigin=originZ;
