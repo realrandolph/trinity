@@ -4,7 +4,7 @@ export async function createRenderer({canvas,book,shaders,width=canvas.width,hei
 if(shaders.rendererABI!=='trinity-grwm-v2')throw new Error('Trinity requires shader ABI trinity-grwm-v2');
 const W=width,H=height;canvas.width=W;canvas.height=H;
 const shadowSize=quality.shadowSize??4096;
-let cachedWorld,cachedTransforms,cachedLighting,cachedOrigin;
+let cachedWorld,cachedTransforms,cachedLighting,cachedOrigin,cachedInspection;
 const gl=canvas.getContext('webgl2',{alpha:false,antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
 if(!gl)throw new Error('WebGL2 required');
 const {vertex:vert,fragment:frag,depth:depthFrag}=shaders;
@@ -62,6 +62,7 @@ function submit(p,node,m,viewProjection,lightMatrix,t,world,cam,light){
     u1(p,'roughness',node.rough);u1(p,'metalness',node.metal);u1(p,'gold_finish',node.gold_finish?1:0);u1(p,'material_kind',node.kind);u1(p,'opacity',1);u1(p,'exposure',1.12);
     u3(p,'lighting_tint',atmosphere.tint);u1(p,'key_gain',atmosphere.keyGain);u1(p,'musical_fill',atmosphere.fill);u1(p,'fog_density',atmosphere.fog);
     u3(p,'show_color_a',atmosphere.colorA);u3(p,'show_color_b',atmosphere.colorB);u1(p,'show_energy',atmosphere.showEnergy);
+    u1(p,'studio_environment',inspectionFixture?1:0);
     u3(p,'show_origin',[0,0,-(world.index??0)*(book.camera?.world_spacing??0)]);
     u3(p,'show_target_a',atmosphere.beams[0]?.end??[0,-1,1]);u3(p,'show_target_b',atmosphere.beams[1]?.end??[0,-1,1]);
     u4(p,'show_cones',[atmosphere.beams[0]?.width??.6,atmosphere.beams[1]?.width??.6,atmosphere.beams[0]?.energy??0,atmosphere.beams[1]?.energy??0]);
@@ -105,7 +106,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
   }
   // One local roughness-filtered probe of this actual lit set. Mirrors are
   // omitted to avoid recursion; glass is rendered transparently after solids.
-  const refreshEnvironment=!quality.cacheEnvironment||!lightingResources.ready||cachedWorld!==world||cachedTransforms!==transforms||cachedLighting!==lighting||cachedOrigin!==originZ;
+  const refreshEnvironment=!quality.cacheEnvironment||!lightingResources.ready||cachedWorld!==world||cachedTransforms!==transforms||cachedLighting!==lighting||cachedOrigin!==originZ||cachedInspection!==inspectionFixture;
   if(refreshEnvironment){
   environmentPosition=(inspectionFixture&&cam?.target)?cam.target:[0,.55,baseZ];environmentPass=true;
   const cubeFaces=[[[1,0,0],[0,-1,0]],[[-1,0,0],[0,-1,0]],[[0,1,0],[0,0,1]],[[0,-1,0],[0,0,-1]],[[0,0,1],[0,-1,0]],[[0,0,-1],[0,-1,0]]];
@@ -113,7 +114,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
   for(let face=0;face<6;face++){
     gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_CUBE_MAP_POSITIVE_X+face,lightingResources.environment,0);gl.clearColor(.005,.005,.008,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     const [direction,up]=cubeFaces[face],pc={eye:environmentPosition,target:add(environmentPosition,direction)},pv=multiply(perspective(Math.PI/2,1,.08,40),lookAt(pc.eye,pc.target,up));
-    mirrorEnvironment.draw(pc,up,baseZ,atmosphere.showEnergy,{probe:true,light,show:atmosphere});
+    mirrorEnvironment.draw(pc,up,baseZ,atmosphere.showEnergy,{probe:true,studio:inspectionFixture,light,show:atmosphere});
     // In inspection mode, the hero asset must not draw into its own environment probe,
     // which would cause self-occlusion artifacts (such as the top reflecting onto the bottom)
     // and waste 6 redundant render passes of all model geometry.
@@ -125,7 +126,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
     }
   }
   gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_CUBE_MAP,lightingResources.environment);gl.generateMipmap(gl.TEXTURE_CUBE_MAP);lightingResources.ready=true;environmentPass=false;
-  cachedWorld=world;cachedTransforms=transforms;cachedLighting=lighting;cachedOrigin=originZ;
+  cachedWorld=world;cachedTransforms=transforms;cachedLighting=lighting;cachedOrigin=originZ;cachedInspection=inspectionFixture;
   }
   // The matte tabletop uses studio reflections; planar views render the selected mirror.
   const mirrorCandidates=world.nodes.map((n,i)=>({n,i})).filter(({n,i})=>visible(i)&&n.kind===3&&/mirror/.test(n.label));
@@ -141,7 +142,7 @@ const visible=k=>!selectedRig||world.nodes[k].assembly===selectedRig.id;
     const rc={eye:reflected(cam.eye),target:reflected(cam.target)};const rvp=multiply(projection,lookAt(rc.eye,rc.target,reflectUp));
      const reflectionSky=world.background.map((v,k)=>v*atmosphere.tint[k]*(1-.65*atmosphere.showEnergy)+atmosphere.colorB[k]*atmosphere.showEnergy*.07);
      gl.bindFramebuffer(gl.FRAMEBUFFER,reflectionBuffer);gl.viewport(0,0,W,H);gl.clearColor(...reflectionSky.map(v=>Math.pow(v/(v+.8),1/2.2)),1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-    mirrorEnvironment.draw(rc,reflectUp,baseZ,atmosphere.showEnergy);
+    mirrorEnvironment.draw(rc,reflectUp,baseZ,atmosphere.showEnergy,{studio:inspectionFixture});
     reflectionClip=[...normal,-dot(normal,point)];
      // Render the authored scene once from the camera reflected across this plane.
     for(let k=0;k<world.nodes.length;k++){const item=world.nodes[k];if(item.kind===7||/mirror/.test(item.label))continue;submit(main,item,transforms[k],rvp,lm,t,world,rc,light);}
